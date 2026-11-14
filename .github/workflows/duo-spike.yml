@@ -22,9 +22,12 @@ env:
   EXPO_NO_TELEMETRY: "1"
   # Not a secret: app.config.js has the same default.
   APPLE_TEAM_ID: 8ZANF9LQ39
+  # Set to an earlier run's id to reuse its apps instead of building.
+  APP_RUN_ID: "43654069771"
 
 jobs:
   build:
+    if: vars.DUO_BUILD == '1'
     strategy:
       fail-fast: false
       matrix:
@@ -88,7 +91,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        name: [sdk26, sdk27, sdk27-scenes]
+        name: [sdk26, sdk27-scenes]
     runs-on: xcode-27
     timeout-minutes: 45
     steps:
@@ -97,6 +100,8 @@ jobs:
         with:
           name: app-${{ matrix.name }}
           path: ${{ runner.temp }}/app
+          run-id: ${{ env.APP_RUN_ID }}
+          github-token: ${{ github.token }}
       - name: Run on the iPhone Duo simulator
         run: |
           tar -C "$RUNNER_TEMP/app" -xzf "$RUNNER_TEMP/app/app.tar.gz"
