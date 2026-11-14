@@ -1,0 +1,109 @@
+name: iPhone Duo spike
+
+# Fork only, never for upstream: what does the app do on the iPhone Duo
+# simulator (Xcode 27.1, Apple silicon only), built three ways?
+#
+# - sdk26:        Xcode 26.6, as the TestFlight builds are today
+# - sdk27:        Xcode 27.1, project unchanged
+# - sdk27-scenes: Xcode 27.1 with plugins/ios-scene-lifecycle
+#
+# Each app is started on the Duo simulator and photographed. No account is
+# signed in, so the artifacts show the sign-in screen only.
+
+on:
+  push:
+    branches: [spike/iphone-duo]
+
+concurrency:
+  group: duo-spike-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  EXPO_NO_TELEMETRY: "1"
+  # Not a secret: app.config.js has the same default.
+  APPLE_TEAM_ID: 8ZANF9LQ39
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: sdk26, runner: macos-26, scenes: "0" }
+          - { name: sdk27, runner: xcode-27, scenes: "0" }
+          - { name: sdk27-scenes, runner: xcode-27, scenes: "1" }
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: xcodebuild -version && xcodebuild -showsdks | grep -i ios
+      - run: npm ci
+      - name: Generate the iOS project
+        env:
+          APS_ENVIRONMENT: development
+          IOS_SCENE_LIFECYCLE: ${{ matrix.scenes }}
+        run: npx expo prebuild --platform ios --clean
+      - name: Build for the simulator
+        run: |
+          WORKSPACE=$(ls -d ios/*.xcworkspace | head -1)
+          SCHEME=$(basename "$WORKSPACE" .xcworkspace)
+          if ! xcodebuild build \
+            -workspace "$WORKSPACE" \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build \
+            ARCHS=arm64 \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY=- \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            PROVISIONING_PROFILE_SPECIFIER= \
+            > xcodebuild.log 2>&1; then
+            grep -E "error:|fatal error" xcodebuild.log | head -n 50 || true
+            tail -n 80 xcodebuild.log
+            exit 1
+          fi
+          # A tar keeps the executable bit, which artifacts drop.
+          tar -C build/Build/Products/Release-iphonesimulator -czf "$RUNNER_TEMP/app.tar.gz" BulwarkMobile.app
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app-${{ matrix.name }}
+          path: ${{ runner.temp }}/app.tar.gz
+          retention-days: 7
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcodebuild-log-${{ matrix.name }}
+          path: xcodebuild.log
+          retention-days: 7
+
+  duo:
+    needs: build
+    if: always() && !cancelled()
+    strategy:
+      fail-fast: false
+      matrix:
+        name: [sdk26, sdk27, sdk27-scenes]
+    runs-on: xcode-27
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: app-${{ matrix.name }}
+          path: ${{ runner.temp }}/app
+      - name: Run on the iPhone Duo simulator
+        run: |
+          tar -C "$RUNNER_TEMP/app" -xzf "$RUNNER_TEMP/app/app.tar.gz"
+          bash scripts/duo/probe.sh "$RUNNER_TEMP/app/BulwarkMobile.app" "$GITHUB_WORKSPACE/duo-output"
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: duo-${{ matrix.name }}
+          path: duo-output
+          retention-days: 7
