@@ -1,17 +1,25 @@
-# Sign apptest1@ in on the outer display (LOGIN / PASSWORD from the workflow's environment).
+# Sign apptest1@ in on the outer display (LOGIN / PASSWORD from the environment).
+# Taps at points measured on Birch's Duo VM (birch/signin.py); waits on text.
 appId: org.bulwarkmail.mobile
 ---
-- launchApp
 - extendedWaitUntil:
-    visible: "Use my email address"
+    visible: "Use my email address. We'll find your mail server"
     timeout: 60000
-- tapOn: "Use my email address"
-- tapOn: "user@example.com"
+- tapOn:
+    point: "233,444"
+- extendedWaitUntil:
+    visible:
+      id: login-email-input
+    timeout: 20000
+    optional: true
+- tapOn:
+    point: "190,152"
 - inputText: ${LOGIN}
-- tapOn: "Continue"
+- tapOn:
+    point: "190,230"
 - extendedWaitUntil:
     visible: "Sign in with a password instead"
-    timeout: 30000
+    timeout: 40000
 - tapOn: "Sign in with a password instead"
 - extendedWaitUntil:
     visible:
@@ -27,11 +35,11 @@ appId: org.bulwarkmail.mobile
     timeout: 90000
 - runFlow:
     when:
-      visible: "Don.t Allow"
-    commands:
-      - tapOn: "Don.t Allow"
-- runFlow:
-    when:
       visible: "Not now"
     commands:
       - tapOn: "Not now"
+- runFlow:
+    when:
+      visible: "Don.t Allow"
+    commands:
+      - tapOn: "Don.t Allow"

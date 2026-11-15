@@ -61,13 +61,13 @@ sleep 30
 shot 01-welcome
 maestro --device "$UDID" hierarchy > "$OUT/hierarchy-welcome.json" 2>>"$OUT/maestro.txt" || log "no hierarchy"
 if [ -n "${PASSWORD:-}" ]; then
-  step use-email "$(tap 233 444)"; sleep 8; shot 02-email
-  step email "$(tap 190 152)${nl}$(type_text "$LOGIN")"; sleep 3
-  step continue "$(tap 190 230)"; sleep 12; shot 03-found
-  step password-instead "$(tap 190 352)"; sleep 8; shot 04-password
-  step password "$(tap 180 280)${nl}$(type_text "$PASSWORD")"; sleep 3
-  step sign-in "$(tap 190 334)"; sleep 30; shot 05-signed-in
-  step not-now "$(tap 189 548)"; sleep 8
+  # One flow: each Maestro run starts its driver again, which took minutes.
+  if maestro --device "$UDID" test -e LOGIN="$LOGIN" -e PASSWORD="$PASSWORD" "$HERE/signin.yaml" >> "$OUT/maestro.txt" 2>&1; then
+    log "signed in"
+  else
+    log "sign-in FAILED (maestro.txt)"
+  fi
+  sleep 8
 else
   log "no PASSWORD: not signing in"
 fi
