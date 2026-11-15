@@ -16,6 +16,7 @@ concurrency:
 
 env:
   EXPO_NO_TELEMETRY: "1"
+  EXPO_PUBLIC_SHOW_METRICS: "1"
   # Not a secret: app.config.js has the same default.
   APPLE_TEAM_ID: 8ZANF9LQ39
 

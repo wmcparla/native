@@ -1,3 +1,4 @@
+import MetricsOverlay from './src/dev/MetricsOverlay';
 import React from 'react';
 import { ActivityIndicator, AppState, Linking, Platform, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -199,6 +200,7 @@ function FocusedHosts({ undo }: { undo: boolean }) {
     <>
       {undo && <UndoSnackbar />}
       <ToastHost />
+      <MetricsOverlay />
     </>
   );
 }
