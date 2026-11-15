@@ -7,7 +7,7 @@ name: vphone IPA
 
 on:
   push:
-    branches: [dev/vphone]
+    branches: [dev/vphone, dev/vphone-duo]
   workflow_dispatch:
 
 concurrency:
