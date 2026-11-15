@@ -4,17 +4,18 @@
 import React from 'react';
 import { StyleSheet, Text, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { isTent, useHinge } from '../lib/device-hinge';
+import { useHingeValue, useTent } from '../lib/device-hinge';
 
 export default function MetricsOverlay() {
   const { width, height } = useWindowDimensions();
   const i = useSafeAreaInsets();
-  const h = useHinge();
+  const h = useHingeValue((x) => (x ? `${x.status}/${Math.round(x.angle)}°` : null));
+  const tent = useTent();
   if (process.env.EXPO_PUBLIC_SHOW_METRICS !== '1') return null;
   return (
     <Text pointerEvents="none" style={styles.text}>
       {`${Math.round(width)}x${Math.round(height)} t${i.top} r${i.right} b${i.bottom} l${i.left}`}
-      {h ? ` hinge ${h.status}/${Math.round(h.angle)}°${isTent(h, width, height) ? ' TENT' : ''}` : ' no hinge'}
+      {h ? ` hinge ${h}${tent ? ' TENT' : ''}` : ' no hinge'}
     </Text>
   );
 }
