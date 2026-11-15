@@ -56,5 +56,10 @@ export function useHinge(): HingeState | null {
 export function useTent(): boolean {
   const hinge = useHinge();
   const { width, height } = useWindowDimensions();
+  // Fork only: the simulator has no scripted pose with a closed hinge at an
+  // angle, so its test build counts closed and sideways as a tent.
+  if (process.env.EXPO_PUBLIC_DESK_WITHOUT_ANGLE === '1' && hinge) {
+    return isTent({ ...hinge, angle: Math.max(hinge.angle, TENT_MIN_ANGLE) }, width, height);
+  }
   return isTent(hinge, width, height);
 }

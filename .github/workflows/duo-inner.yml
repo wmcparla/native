@@ -22,6 +22,8 @@ env:
   APP_RUN_ID: ""
   # The overlay with window size, insets and hinge (src/dev/MetricsOverlay.tsx).
   EXPO_PUBLIC_SHOW_METRICS: "1"
+  # Closed and sideways counts as a tent (src/lib/device-hinge.ts useTent).
+  EXPO_PUBLIC_DESK_WITHOUT_ANGLE: "1"
 
 jobs:
   build:

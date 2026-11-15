@@ -54,6 +54,7 @@ step() { # step <name> <yaml commands...>
 }
 tap() { printf -- '- tapOn:\n    point: "%s,%s"\n' "$1" "$2"; }
 type_text() { printf -- '- inputText: "%s"\n' "$1"; }
+nl=$'\n'  # command substitution drops the trailing newline between two commands
 
 xcrun simctl launch "$UDID" "$BUNDLE_ID" >/dev/null
 sleep 30
@@ -61,10 +62,10 @@ shot 01-welcome
 maestro --device "$UDID" hierarchy > "$OUT/hierarchy-welcome.json" 2>>"$OUT/maestro.txt" || log "no hierarchy"
 if [ -n "${PASSWORD:-}" ]; then
   step use-email "$(tap 233 444)"; sleep 8; shot 02-email
-  step email "$(tap 190 152)$(type_text "$LOGIN")"; sleep 3
+  step email "$(tap 190 152)${nl}$(type_text "$LOGIN")"; sleep 3
   step continue "$(tap 190 230)"; sleep 12; shot 03-found
   step password-instead "$(tap 190 352)"; sleep 8; shot 04-password
-  step password "$(tap 180 280)$(type_text "$PASSWORD")"; sleep 3
+  step password "$(tap 180 280)${nl}$(type_text "$PASSWORD")"; sleep 3
   step sign-in "$(tap 190 334)"; sleep 30; shot 05-signed-in
   step not-now "$(tap 189 548)"; sleep 8
 else
@@ -72,17 +73,24 @@ else
 fi
 shot 06-closed-list
 
-# What iOS reports for each pose, in the build's overlay (hinge status/angle).
+# Closed, a message: the toolbars in the status column.
+step open-message "$(tap 190 245)"; sleep 10; shot 07-closed-message
+step back "$(tap 424 200)"; sleep 6
+
+# Closed and turned sideways: the desk inbox (this build skips the hinge
+# angle, which no scripted pose produces; see EXPO_PUBLIC_DESK_WITHOUT_ANGLE).
 pose get
-pose pose 3 1;    sleep 8; shot 10-closed-landscape
-for tabletop in 1 2 3 4 5 6 7 8 9 10; do
-  pose pose 3 1 "$tabletop"; sleep 6; shot "11-closed-landscape-tabletop$tabletop"
-done
-pose pose 1 1 0
-pose swap 0.33;   sleep 8; pose get; shot 20-swap-60deg
-pose pose 3 2;    sleep 8; shot 21-partial-landscape
-pose swap 0;      sleep 8; pose pose 3 1 0; sleep 6; shot 22-closed-again-landscape
-pose pose 1 1 0;  sleep 6; shot 23-closed-portrait
+pose pose 3 1;    sleep 10; shot 10-desk
+maestro --device "$UDID" hierarchy > "$OUT/hierarchy-desk.json" 2>>"$OUT/maestro.txt" || log "no hierarchy"
+step desk-open "$(tap 300 160)"; sleep 10; shot 11-desk-message
+pose pose 1 1;    sleep 10; shot 12-closed-upright-again
+
+# Opened: flat sideways, then upright, then half open like a book.
+pose swap 1;      sleep 10; pose get; shot 20-open
+pose pose 3 3;    sleep 8;  shot 21-open-upright
+pose pose 1 3;    sleep 8
+pose swap 0.55;   sleep 10; pose get; shot 22-book
+pose swap 0;      sleep 10; shot 23-closed-again
 
 xcrun simctl spawn "$UDID" log show --last 20m --style compact \
   --predicate 'eventMessage CONTAINS[c] "hinge" OR eventMessage CONTAINS[c] "tent" OR eventMessage CONTAINS[c] "devicepose"' \
