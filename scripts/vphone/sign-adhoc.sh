@@ -15,9 +15,14 @@ ents() {
   id=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$bundle/Info.plist")
   src=$(ls "$iosdir/$name/$name.entitlements" 2>/dev/null || true)
   out=$(mktemp -t ents).plist
-  if [ -n "$src" ]; then cp "$src" "$out"; else plutil -create xml1 "$out"; fi
-  plutil -replace application-identifier -string "$team.$id" "$out"
-  plutil -replace com.apple.developer.team-identifier -string "$team" "$out"
+  # Xcode expands $(AppIdentifierPrefix) when it signs; here it is done by hand.
+  if [ -n "$src" ]; then sed "s/\$(AppIdentifierPrefix)/$team./g" "$src" > "$out"
+  else plutil -create xml1 "$out"; fi
+  # PlistBuddy, not plutil: plutil reads the dots in a key as a key path.
+  /usr/libexec/PlistBuddy -c "Delete :application-identifier" "$out" 2>/dev/null || true
+  /usr/libexec/PlistBuddy -c "Add :application-identifier string $team.$id" "$out"
+  /usr/libexec/PlistBuddy -c "Delete :com.apple.developer.team-identifier" "$out" 2>/dev/null || true
+  /usr/libexec/PlistBuddy -c "Add :com.apple.developer.team-identifier string $team" "$out"
   echo "$out"
 }
 
