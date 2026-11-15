@@ -11,8 +11,7 @@ name: iPhone Duo spike
 # signed in, so the artifacts show the sign-in screen only.
 
 on:
-  push:
-    branches: [spike/iphone-duo]
+  workflow_dispatch:
 
 concurrency:
   group: duo-spike-${{ github.ref }}
