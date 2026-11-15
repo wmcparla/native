@@ -1,7 +1,7 @@
 // Fold, open and turn the iPhone Duo simulator from a script (fork only).
 //
 //   duo-pose swap <position>          0 closed .. 1 open flat; SpringBoard sweeps and swaps displays
-//   duo-pose pose <orientation> <hinge>  device orientation 1-4, hinge state 0-4 (3 open flat)
+//   duo-pose pose <orientation> <hinge> [tabletop]  device orientation 1-6, hinge state 0-4 (3 open flat), tabletop pose 0-10
 //   duo-pose get                      the pose SpringBoard holds
 //
 // The same SpringBoardServices calls vphoned makes on Birch's Duo VM
@@ -66,12 +66,13 @@ int main(int argc, char **argv) {
             return waited == 0 ? 0 : 1;
         }
         if ([cmd isEqualToString:@"pose"] && argc > 3) {
+            int tabletop = argc > 4 ? atoi(argv[4]) : 0;
             Class c;
             SEL sel = NSSelectorFromString(@"setDevicePoseOverride:");
             need("SBSTestAutomationService", sel, NULL, &c);
-            DevicePose p = {atoi(argv[2]), atoi(argv[2]), atoi(argv[3]), 0};
+            DevicePose p = {atoi(argv[2]), atoi(argv[2]), atoi(argv[3]), tabletop};
             ((void (*)(id, SEL, DevicePose))objc_msgSend)([c new], sel, p);
-            printf("pose orientation %d hinge %d sent\n", p.deviceOrientation, p.hingeState);
+            printf("pose orientation %d hinge %d tabletop %d sent\n", p.deviceOrientation, p.hingeState, p.tabletopPose);
             return 0;
         }
         Class c;

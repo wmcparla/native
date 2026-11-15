@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Open the iPhone Duo simulator by script and photograph the app on both
-# displays (fork only).
+# The app on the iPhone Duo simulator, signed in, folded, opened and stood as
+# a tent by script (fork only).
 #
 #   scripts/duo/inner.sh <app path> <output folder>
 #
-# Needs LOGIN and PASSWORD in the environment for the Maestro sign-in. Steps:
-# closed (sign in, list, a message open), opened flat, turned, closed again.
-# Every step is logged to steps.txt; a step that fails does not stop the rest.
+# Needs LOGIN and PASSWORD in the environment for the sign-in. Every step is
+# logged to steps.txt and photographed on both displays; a step that fails
+# does not stop the rest.
 set -uo pipefail
 APP=$1
 OUT=$2
@@ -30,14 +30,8 @@ xcrun simctl boot "$UDID"
 xcrun simctl bootstatus "$UDID" -b
 xcrun simctl install "$UDID" "$APP"
 
-# Apple's own tool, if the runtime has it.
-RUNTIME_ROOT=$(xcrun simctl list runtimes -j | jq -r '[.runtimes[] | select(.name | test("iOS 27"))] | last | .runtimeRoot // empty')
-find "$RUNTIME_ROOT" -iname '*suiatool*' > "$OUT/suiatool.txt" 2>/dev/null
-log "suiatool in the runtime: $(wc -l < "$OUT/suiatool.txt") hits"
-
 pose() { log "duo-pose $*: $(xcrun simctl spawn "$UDID" "$RUNNER_TEMP/duo-pose" "$@" 2>&1 | tr '\n' ' ')"; }
 shot() {
-  xcrun simctl io "$UDID" enumerate 2>/dev/null | grep -E "Device Name|UI Orientation" | paste - - > "$OUT/$1-orientation.txt"
   for screen in primary primary-1; do
     xcrun simctl io "$UDID" screenshot --display="$screen" "$OUT/$1-$screen.png" >/dev/null 2>&1 \
       || log "no screenshot $1 $screen"
@@ -45,71 +39,61 @@ shot() {
   log "shot $1"
 }
 
-pose get
-shot closed-home
-
-# Sign in on the outer display with Maestro.
-# Maestro's iOS driver is built for the simulator on its first start: give it time.
+# Maestro drives taps and typing. It finds no text on the Duo (run 43744912285:
+# "Use my email address" not visible), so the flows tap points, measured on
+# Birch's Duo VM on the same 466x678 outer display (birch/signin.py).
 export MAESTRO_DRIVER_STARTUP_TIMEOUT=600000
-MAESTRO_OK=0
-if [ -n "${PASSWORD:-}" ] && command -v maestro >/dev/null; then
-  if maestro --device "$UDID" test -e LOGIN="$LOGIN" -e PASSWORD="$PASSWORD" "$HERE/signin.yaml" \
-      > "$OUT/maestro.txt" 2>&1; then
-    log "signed in"
-    MAESTRO_OK=1
+step() { # step <name> <yaml commands...>
+  local name=$1; shift
+  printf 'appId: %s\n---\n%s\n' "$BUNDLE_ID" "$*" > "$RUNNER_TEMP/$name.yaml"
+  if maestro --device "$UDID" test "$RUNNER_TEMP/$name.yaml" >> "$OUT/maestro.txt" 2>&1; then
+    log "step $name"
   else
-    log "maestro sign-in failed (maestro.txt)"
+    log "step $name FAILED (maestro.txt)"
   fi
+}
+tap() { printf -- '- tapOn:\n    point: "%s,%s"\n' "$1" "$2"; }
+type_text() { printf -- '- inputText: "%s"\n' "$1"; }
+
+xcrun simctl launch "$UDID" "$BUNDLE_ID" >/dev/null
+sleep 30
+shot 01-welcome
+maestro --device "$UDID" hierarchy > "$OUT/hierarchy-welcome.json" 2>>"$OUT/maestro.txt" || log "no hierarchy"
+if [ -n "${PASSWORD:-}" ]; then
+  step use-email "$(tap 233 444)"; sleep 8; shot 02-email
+  step email "$(tap 190 152)$(type_text "$LOGIN")"; sleep 3
+  step continue "$(tap 190 230)"; sleep 12; shot 03-found
+  step password-instead "$(tap 190 352)"; sleep 8; shot 04-password
+  step password "$(tap 180 280)$(type_text "$PASSWORD")"; sleep 3
+  step sign-in "$(tap 190 334)"; sleep 30; shot 05-signed-in
+  step not-now "$(tap 189 548)"; sleep 8
 else
-  log "no sign-in (no PASSWORD or no maestro)"
-  xcrun simctl launch "$UDID" "$BUNDLE_ID" >/dev/null
+  log "no PASSWORD: not signing in"
 fi
-sleep 15
-shot closed-list
+shot 06-closed-list
 
-# Open the first message on the outer display.
-cat > "$RUNNER_TEMP/open-first.yaml" <<FLOW
-appId: $BUNDLE_ID
----
-- tapOn:
-    point: "40%,25%"
-FLOW
-if [ "$MAESTRO_OK" = 1 ]; then
-  maestro --device "$UDID" test "$RUNNER_TEMP/open-first.yaml" >> "$OUT/maestro.txt" 2>&1 || log "tap failed"
-fi
-sleep 10
-shot closed-message
-
-pose swap 1
-sleep 10
+# What iOS reports for each pose, in the build's overlay (hinge status/angle).
 pose get
-shot open
+pose pose 3 1;    sleep 8; shot 10-closed-landscape
+for tabletop in 1 2 3 4 5 6 7 8 9 10; do
+  pose pose 3 1 "$tabletop"; sleep 6; shot "11-closed-landscape-tabletop$tabletop"
+done
+pose pose 1 1 0
+pose swap 0.33;   sleep 8; pose get; shot 20-swap-60deg
+pose pose 3 2;    sleep 8; shot 21-partial-landscape
+pose swap 0;      sleep 8; pose pose 3 1 0; sleep 6; shot 22-closed-again-landscape
+pose pose 1 1 0;  sleep 6; shot 23-closed-portrait
 
-pose pose 3 3
-sleep 8
-pose get
-shot open-turn3
-pose pose 4 3
-sleep 8
-shot open-turn4
-pose pose 1 3
-sleep 8
-shot open-turn1
-
-pose swap 0
-sleep 10
-pose get
-shot closed-again
-
-xcrun simctl spawn "$UDID" log show --last 15m --style compact \
-  --predicate 'eventMessage CONTAINS[c] "displaytool" OR eventMessage CONTAINS[c] "devicepose" OR eventMessage CONTAINS[c] "entitle"' \
+xcrun simctl spawn "$UDID" log show --last 20m --style compact \
+  --predicate 'eventMessage CONTAINS[c] "hinge" OR eventMessage CONTAINS[c] "tent" OR eventMessage CONTAINS[c] "devicepose"' \
   > "$OUT/springboard.log" 2>&1
 cp ~/Library/Logs/DiagnosticReports/BulwarkMobile* "$OUT/" 2>/dev/null || true
 xcrun simctl shutdown "$UDID"
 # Maestro echoes the text it types: the password leaves the output folder.
 if [ -n "${PASSWORD:-}" ]; then
   PASSWORD="$PASSWORD" python3 -c 'import os,sys,pathlib
-for f in pathlib.Path(sys.argv[1]).glob("*.txt"):
+for f in pathlib.Path(sys.argv[1]).glob("*"):
+    if f.suffix not in (".txt", ".json", ".log", ".yaml"): continue
     t = f.read_text(errors="replace")
     if os.environ["PASSWORD"] in t: f.write_text(t.replace(os.environ["PASSWORD"], "[password]"))' "$OUT"
 fi
