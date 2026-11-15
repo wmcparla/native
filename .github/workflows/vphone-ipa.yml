@@ -1,0 +1,76 @@
+name: vphone IPA
+
+# Fork only, never for upstream: a device (iphoneos) build of the app for the vphone-linux
+# iPhone, iPhone Duo and iPad VMs on Birch. Xcode 27.1 with plugins/ios-scene-lifecycle;
+# unsigned by Xcode, then signed ad hoc with the app's entitlements (the guest signs it again
+# on install). The JS bundle is embedded (Release), so no Metro server is needed.
+
+on:
+  push:
+    branches: [dev/vphone]
+  workflow_dispatch:
+
+concurrency:
+  group: vphone-ipa-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  EXPO_NO_TELEMETRY: "1"
+  # Not a secret: app.config.js has the same default.
+  APPLE_TEAM_ID: 8ZANF9LQ39
+
+jobs:
+  ipa:
+    runs-on: xcode-27
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: xcodebuild -version
+      - run: npm ci
+      - name: Generate the iOS project
+        env:
+          APS_ENVIRONMENT: development
+          IOS_SCENE_LIFECYCLE: "1"
+        run: npx expo prebuild --platform ios --clean
+      - name: Build for devices
+        run: |
+          WORKSPACE=$(ls -d ios/*.xcworkspace | head -1)
+          SCHEME=$(basename "$WORKSPACE" .xcworkspace)
+          if ! xcodebuild build \
+            -workspace "$WORKSPACE" \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY= \
+            > xcodebuild.log 2>&1; then
+            grep -E "error:|fatal error" xcodebuild.log | head -n 50 || true
+            tail -n 80 xcodebuild.log
+            exit 1
+          fi
+      - name: Sign ad hoc and package
+        run: |
+          APP=build/Build/Products/Release-iphoneos/BulwarkMobile.app
+          bash scripts/vphone/sign-adhoc.sh "$APP" ios "$APPLE_TEAM_ID"
+          mkdir -p "$RUNNER_TEMP/ipa/Payload"
+          cp -R "$APP" "$RUNNER_TEMP/ipa/Payload/"
+          (cd "$RUNNER_TEMP/ipa" && zip -qry "$RUNNER_TEMP/BulwarkMobile.ipa" Payload)
+          ls -l "$RUNNER_TEMP/BulwarkMobile.ipa"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bulwark-ipa
+          path: ${{ runner.temp }}/BulwarkMobile.ipa
+          retention-days: 14
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcodebuild-log
+          path: xcodebuild.log
+          retention-days: 7
