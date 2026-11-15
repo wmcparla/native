@@ -15,12 +15,13 @@ BUNDLE_ID=org.bulwarkmail.mobile
 mkdir -p "$OUT"
 log() { echo "$(date +%H:%M:%S) $*" | tee -a "$OUT/steps.txt"; }
 
-# The pose tool, signed with the two SpringBoard entitlements, as a section
-# too (the simulator reads entitlements from either, depending on the check).
+# The pose tool. A simulator binary carries its entitlements in a linker
+# section, as Xcode builds them; macOS refuses private ones in an ad hoc
+# signature ("Codesigning issue", run 43743225777).
 xcrun -sdk iphonesimulator clang -arch arm64 -mios-simulator-version-min=17.0 -fobjc-arc \
   -framework Foundation "$HERE/duo-pose.m" -o "$RUNNER_TEMP/duo-pose" \
   -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __entitlements -Xlinker "$HERE/duo-pose.entitlements" \
-  && codesign -f -s - --entitlements "$HERE/duo-pose.entitlements" "$RUNNER_TEMP/duo-pose" \
+  && codesign -f -s - "$RUNNER_TEMP/duo-pose" \
   || log "pose tool did not build"
 
 UDID=$(xcrun simctl list devices available -j | jq -r '[.devices[][] | select(.name | test("Duo"))] | last | .udid // empty')
@@ -48,10 +49,14 @@ pose get
 shot closed-home
 
 # Sign in on the outer display with Maestro.
+# Maestro's iOS driver is built for the simulator on its first start: give it time.
+export MAESTRO_DRIVER_STARTUP_TIMEOUT=600000
+MAESTRO_OK=0
 if [ -n "${PASSWORD:-}" ] && command -v maestro >/dev/null; then
   if maestro --device "$UDID" test -e LOGIN="$LOGIN" -e PASSWORD="$PASSWORD" "$HERE/signin.yaml" \
       > "$OUT/maestro.txt" 2>&1; then
     log "signed in"
+    MAESTRO_OK=1
   else
     log "maestro sign-in failed (maestro.txt)"
   fi
@@ -69,7 +74,9 @@ appId: $BUNDLE_ID
 - tapOn:
     point: "40%,25%"
 FLOW
-maestro --device "$UDID" test "$RUNNER_TEMP/open-first.yaml" >> "$OUT/maestro.txt" 2>&1 || log "tap failed"
+if [ "$MAESTRO_OK" = 1 ]; then
+  maestro --device "$UDID" test "$RUNNER_TEMP/open-first.yaml" >> "$OUT/maestro.txt" 2>&1 || log "tap failed"
+fi
 sleep 10
 shot closed-message
 
