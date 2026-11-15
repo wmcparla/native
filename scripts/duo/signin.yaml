@@ -1,0 +1,37 @@
+# Sign apptest1@ in on the outer display (LOGIN / PASSWORD from the workflow's environment).
+appId: org.bulwarkmail.mobile
+---
+- launchApp
+- extendedWaitUntil:
+    visible: "Use my email address"
+    timeout: 60000
+- tapOn: "Use my email address"
+- tapOn: "user@example.com"
+- inputText: ${LOGIN}
+- tapOn: "Continue"
+- extendedWaitUntil:
+    visible: "Sign in with a password instead"
+    timeout: 30000
+- tapOn: "Sign in with a password instead"
+- extendedWaitUntil:
+    visible:
+      id: login-password-input
+    timeout: 20000
+- tapOn:
+    id: login-password-input
+- inputText: ${PASSWORD}
+- pressKey: Enter
+- extendedWaitUntil:
+    visible:
+      id: tab-mail
+    timeout: 90000
+- runFlow:
+    when:
+      visible: "Don.t Allow"
+    commands:
+      - tapOn: "Don.t Allow"
+- runFlow:
+    when:
+      visible: "Not now"
+    commands:
+      - tapOn: "Not now"
