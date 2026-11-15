@@ -17,6 +17,8 @@ concurrency:
 env:
   EXPO_NO_TELEMETRY: "1"
   EXPO_PUBLIC_SHOW_METRICS: "1"
+  # The desk inbox whenever folded (src/lib/device-hinge.ts useTent).
+  EXPO_PUBLIC_DESK_ANY_POSE: "1"
   # Not a secret: app.config.js has the same default.
   APPLE_TEAM_ID: 8ZANF9LQ39
 

@@ -97,9 +97,12 @@ function tentBand(h: HingeState | null): 'tent' | 'edge' | 'none' {
 /** Whether the Duo stands as a tent now (`isTent`, with its hysteresis). */
 export function useTent(): boolean {
   const { width, height } = useWindowDimensions();
-  const band = useHingeValue(tentBand);
+  // Fork only: Birch's Duo VM dies when the folded Duo turns sideways, so its
+  // test build shows the desk inbox whenever the Duo is folded, upright too.
+  const anyPose = process.env.EXPO_PUBLIC_DESK_ANY_POSE === '1';
+  const band = useHingeValue(anyPose ? (h) => (h?.status === HINGE_CLOSED ? 'tent' : 'none') : tentBand);
   const wasTent = React.useRef(false);
-  const tent = width > height && (band === 'tent' || (band === 'edge' && wasTent.current));
+  const tent = (anyPose || width > height) && (band === 'tent' || (band === 'edge' && wasTent.current));
   wasTent.current = tent;
   return tent;
 }
