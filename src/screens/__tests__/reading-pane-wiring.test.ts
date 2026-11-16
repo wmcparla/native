@@ -22,7 +22,7 @@ describe('reading pane setting wiring', () => {
     // its docked folder list...
     const tab = read('screens/MailTab.tsx');
     expect(tab).toMatch(/const layout = useMailLayout\(true\);/);
-    expect(tab).toMatch(/<View style=\{styles\.row\} onLayout=\{layout\.onLayout\}>/);
+    expect(tab).toMatch(/<View style=\{\[styles\.row, stacked && styles\.stack\]\} onLayout=\{layout\.onLayout\}>/);
     expect(tab).toMatch(/const roomWidth = layout\.listWidth \+ layout\.detailWidth;/);
     expect(read('screens/UnifiedInboxScreen.tsx')).toMatch(/const layout = mailLayoutFor\(\{ \.\.\.useLayout\(\), hasSidebar: false \}, readingPane, width\);/);
     // ...and the list places its undo bar by the tab's decision...
@@ -37,7 +37,7 @@ describe('reading pane setting wiring', () => {
   it('draws the mail screens only once the stored setting is known', () => {
     expect(read('lib/use-mail-layout.ts')).toMatch(/mailScreenLayoutFor\(window, contentWidth, readingPane, hydrated\)/);
     expect(read('lib/use-mail-layout.ts')).toMatch(/const hydrated = useSettingsStore\(\(s\) => s\.hydrated\);/);
-    expect(read('screens/MailTab.tsx')).toMatch(/if \(!layout\.ready\) return <View style=\{styles\.row\} onLayout=\{layout\.onLayout\} \/>;\r?\n\r?\n(\s*\/\/.*\r?\n)*  return \(\r?\n    <View style=\{styles\.row\} onLayout=\{layout\.onLayout\}>/);
+    expect(read('screens/MailTab.tsx')).toMatch(/if \(!layout\.ready\) return <View style=\{styles\.row\} onLayout=\{layout\.onLayout\} \/>;\r?\n\r?\n(\s*\/\/.*\r?\n)*  return \(\r?\n    <View style=\{\[styles\.row, stacked && styles\.stack\]\} onLayout=\{layout\.onLayout\}>/);
     // A unified view is drawn by the Mail tab (#119), after that wait.
     expect(read('screens/MailTab.tsx')).toMatch(/if \(!layout\.ready\) return [^\n]*\n[\s\S]*\{unified && \(\s+<View style=\{styles\.fill\}>\s+<UnifiedInboxScreen/);
     expect(read('screens/UnifiedInboxScreen.tsx')).not.toMatch(/useMailLayout/);

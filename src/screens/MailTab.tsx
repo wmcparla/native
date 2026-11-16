@@ -102,6 +102,9 @@ export default function MailTab({ navigation }: { navigation: RootNav }) {
     setActiveKey(row ? rowKeyOf(row) : id);
   }, [setActiveKey]);
 
+  // An iPhone Duo half open like a laptop: the message on the upright half,
+  // its buttons and the list on the half lying flat, nothing across the fold.
+  const stacked = layout.foldY != null && !unified && !layout.hasSidebar;
   const list = (
     <EmailListScreen
       onComposePress={() => navigation.navigate('Compose')}
@@ -110,8 +113,10 @@ export default function MailTab({ navigation }: { navigation: RootNav }) {
       split={layout.isSplit}
       sidebarDocked={layout.hasSidebar}
       covered={!!unified}
+      belowReader={stacked}
     />
   );
+  const listBesideReader = layout.isSplit && !stacked;
   // The room right of a docked folder list, for a unified view's list and pane.
   const roomWidth = layout.listWidth + layout.detailWidth;
 
@@ -124,7 +129,7 @@ export default function MailTab({ navigation }: { navigation: RootNav }) {
   // room it has. Under a unified view the folder list stays mounted too, as
   // it did under the screen the view used to be.
   return (
-    <View style={styles.row} onLayout={layout.onLayout}>
+    <View style={[styles.row, stacked && styles.stack]} onLayout={layout.onLayout}>
       {layout.hasSidebar && <SidebarDrawer docked visible onClose={noop} />}
       {unified && (
         <View style={styles.fill}>
@@ -139,15 +144,16 @@ export default function MailTab({ navigation }: { navigation: RootNav }) {
           />
         </View>
       )}
-      <View style={[layout.isSplit ? [styles.listPane, { width: layout.listWidth }] : styles.fill, unified && styles.hidden]}>{list}</View>
+      <View style={[listBesideReader ? [styles.listPane, { width: layout.listWidth }] : styles.fill, unified && styles.hidden]}>{list}</View>
       {layout.isSplit && !unified && (
-        <View style={styles.fill}>
+        <View style={stacked ? styles.readerAbove : styles.fill}>
           <MessagePane
             message={pane.open}
             navigation={navigation}
             onRemoved={showNextAfterRemoval}
             onReplace={pane.replace}
             onActiveChange={onActiveChange}
+            foldAt={stacked ? layout.foldY : null}
           />
         </View>
       )}
@@ -161,6 +167,10 @@ function makeStyles(c: ThemePalette) {
   return StyleSheet.create({
     row: { flex: 1, flexDirection: 'row', backgroundColor: c.background },
     listPane: { borderRightWidth: 1, borderRightColor: c.border },
+    // The list stays first in the tree (it keeps its place when the layout
+    // changes) and is drawn second: below the reader.
+    stack: { flexDirection: 'column-reverse' },
+    readerAbove: { borderBottomWidth: 1, borderBottomColor: c.border },
     fill: { flex: 1 },
     hidden: { display: 'none' },
   });
