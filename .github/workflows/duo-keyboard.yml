@@ -19,7 +19,7 @@ env:
   EXPO_NO_TELEMETRY: "1"
   # Not a secret: app.config.js has the same default.
   APPLE_TEAM_ID: 8ZANF9LQ39
-  APP_RUN_ID: ""
+  APP_RUN_ID: "43921295603"
   # The overlay with window size, insets and hinge (src/dev/MetricsOverlay.tsx).
   EXPO_PUBLIC_SHOW_METRICS: "1"
   # Closed and sideways counts as a tent (src/lib/device-hinge.ts useTent).

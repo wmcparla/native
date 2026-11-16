@@ -18,8 +18,6 @@ xcrun -sdk iphonesimulator clang -arch arm64 -mios-simulator-version-min=17.0 -f
   && codesign -f -s - "$RUNNER_TEMP/duo-pose" \
   || log "pose tool did not build"
 
-# No hardware keyboard, or the simulator hides the on-screen one.
-defaults write com.apple.iphonesimulator ConnectHardwareKeyboard -bool false
 
 UDID=$(xcrun simctl list devices available -j | jq -r '[.devices[][] | select(.name | test("Duo"))] | last | .udid // empty')
 [ -n "$UDID" ] || { echo "::error::No iPhone Duo simulator"; exit 1; }
@@ -51,6 +49,7 @@ focus() { printf -- '- tapOn:\n    id: login-email-input\n    optional: true\n';
 nl=$'\n'
 
 xcrun simctl launch "$UDID" "$BUNDLE_ID" >/dev/null
+log "booted: $(xcrun simctl list devices | grep -c Booted)"
 sleep 30
 shot 01-welcome
 # Outer display: "Use my email address", then the address field.
