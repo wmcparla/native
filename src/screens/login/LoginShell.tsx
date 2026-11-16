@@ -8,12 +8,12 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
 import { ArrowLeft, X } from '../../components/icons';
 import { spacing, typography, componentSizes, type ThemePalette } from '../../theme/tokens';
 import { useColors } from '../../theme/colors';
 import { useLocaleStore } from '../../stores/locale-store';
+import LoginFrame from './LoginFrame';
 import { LoginLanguagePicker } from './LoginLanguagePicker';
 
 const APP_VERSION = Constants.expoConfig?.version ?? '0.0.0';
@@ -44,19 +44,9 @@ export default function LoginShell({
   const c = useColors();
   const styles = React.useMemo(() => makeStyles(c), [c]);
   const t = useLocaleStore((s) => s.t);
-  const insets = useSafeAreaInsets();
-  // Sign-in fills the window, so it pads by the window's insets: as the first
-  // screen after a cold start the native SafeAreaView missed the iPhone Duo's
-  // status column and the language button sat under it. Add account
-  // (`onClose`) is a sheet, whose own safe area is not the window's, and
-  // keeps the native view.
-  const Root = onClose ? SafeAreaView : View;
-  const windowInsets = onClose
-    ? null
-    : { paddingTop: insets.top, paddingRight: insets.right, paddingBottom: insets.bottom, paddingLeft: insets.left };
 
   return (
-    <Root style={[styles.container, windowInsets]}>
+    <LoginFrame sheet={!!onClose} style={styles.container}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.flex}
@@ -107,7 +97,7 @@ export default function LoginShell({
           </View>
         ) : null}
       </KeyboardAvoidingView>
-    </Root>
+    </LoginFrame>
   );
 }
 

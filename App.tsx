@@ -939,8 +939,9 @@ export default function App() {
     return (
       <>
         <StatusBar style={statusBarStyle} />
-        {/* No navigator here to provide the window's insets (LoginShell). */}
-        <SafeAreaProvider>
+        {/* No navigator here to provide the window's insets (LoginFrame). The
+            provider draws nothing until it has them: its background fills that frame. */}
+        <SafeAreaProvider style={{ backgroundColor: background }}>
           <LoginScreen />
         </SafeAreaProvider>
       </>
