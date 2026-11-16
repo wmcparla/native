@@ -1,0 +1,96 @@
+name: iPhone Duo keyboard
+
+# Fork only, never for upstream: the app on both displays of the iPhone Duo
+# simulator (Xcode 27.1) with the on-screen keyboard up, in every pose
+# (scripts/duo/keyboard.sh). No account is used.
+#
+# APP_RUN_ID set: reuse that run's app-sdk27-scenes artifact. Empty: build
+# this branch with Xcode 27.1 and the scene life cycle plugin.
+
+on:
+  push:
+    branches: ['spike/duo-keyboard']
+
+concurrency:
+  group: duo-keyboard-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  EXPO_NO_TELEMETRY: "1"
+  # Not a secret: app.config.js has the same default.
+  APPLE_TEAM_ID: 8ZANF9LQ39
+  APP_RUN_ID: ""
+  # The overlay with window size, insets and hinge (src/dev/MetricsOverlay.tsx).
+  EXPO_PUBLIC_SHOW_METRICS: "1"
+  # Closed and sideways counts as a tent (src/lib/device-hinge.ts useTent).
+  EXPO_PUBLIC_DESK_WITHOUT_ANGLE: "1"
+
+jobs:
+  build:
+    runs-on: xcode-27
+    timeout-minutes: 75
+    steps:
+      - if: env.APP_RUN_ID != ''
+        run: echo "Reusing the app of run $APP_RUN_ID"
+      - if: env.APP_RUN_ID == ''
+        uses: actions/checkout@v4
+      - if: env.APP_RUN_ID == ''
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - if: env.APP_RUN_ID == ''
+        run: npm ci
+      - if: env.APP_RUN_ID == ''
+        name: Generate the iOS project
+        env:
+          APS_ENVIRONMENT: development
+          IOS_SCENE_LIFECYCLE: "1"
+        run: npx expo prebuild --platform ios --clean
+      - if: env.APP_RUN_ID == ''
+        name: Build for the simulator
+        run: |
+          WORKSPACE=$(ls -d ios/*.xcworkspace | head -1)
+          SCHEME=$(basename "$WORKSPACE" .xcworkspace)
+          if ! xcodebuild build -workspace "$WORKSPACE" -scheme "$SCHEME" -configuration Release \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath build \
+            ARCHS=arm64 CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            PROVISIONING_PROFILE_SPECIFIER= > xcodebuild.log 2>&1; then
+            grep -E "error:|fatal error" xcodebuild.log | head -n 50 || true
+            tail -n 80 xcodebuild.log
+            exit 1
+          fi
+          tar -C build/Build/Products/Release-iphonesimulator -czf "$RUNNER_TEMP/app.tar.gz" BulwarkMobile.app
+      - if: env.APP_RUN_ID == ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-sdk27-scenes
+          path: ${{ runner.temp }}/app.tar.gz
+          retention-days: 7
+
+  inner:
+    needs: build
+    runs-on: xcode-27
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: app-sdk27-scenes
+          path: ${{ runner.temp }}/app
+          run-id: ${{ env.APP_RUN_ID || github.run_id }}
+          github-token: ${{ github.token }}
+      - name: Install Maestro
+        run: |
+          curl -fsSL "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+      - name: The keyboard on every display and pose
+        run: |
+          tar -C "$RUNNER_TEMP/app" -xzf "$RUNNER_TEMP/app/app.tar.gz"
+          bash scripts/duo/keyboard.sh "$RUNNER_TEMP/app/BulwarkMobile.app" "$GITHUB_WORKSPACE/duo-output"
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: duo-keyboard
+          path: duo-output
+          retention-days: 7
