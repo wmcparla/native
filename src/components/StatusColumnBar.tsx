@@ -20,13 +20,15 @@ export interface BarItem {
  * as Apple asks for the column; each keeps its label for VoiceOver. Drawn over
  * the column (the window's right inset), at its foot, below the status bar;
  * `footInset` replaces the bottom inset where something taller covers the
- * foot (the keyboard under a composer).
+ * foot (the keyboard under a composer), `width` the column's where the
+ * screen ends short of the window's edge (an iOS sheet).
  */
-export default function StatusColumnBar({ back, top, bottom, footInset }: {
+export default function StatusColumnBar({ back, top, bottom, footInset, width }: {
   back: BarItem;
   top: BarItem[];
   bottom: BarItem[];
   footInset?: number;
+  width?: number;
 }) {
   const c = useColors();
   const insets = useSafeAreaInsets();
@@ -45,7 +47,7 @@ export default function StatusColumnBar({ back, top, bottom, footInset }: {
     </Pressable>
   );
   return (
-    <View accessibilityRole="toolbar" style={[styles.column, { width: insets.right, paddingBottom: (footInset ?? insets.bottom) + 8 }]}>
+    <View accessibilityRole="toolbar" style={[styles.column, { width: width ?? insets.right, paddingBottom: (footInset ?? insets.bottom) + 8 }]}>
       {button(back, c.text)}
       {top.map((item) => button(item, c.textSecondary))}
       <View style={styles.gap} />

@@ -731,8 +731,8 @@ export default function ComposeScreen({ route, navigation }: Props) {
   // wrapped into "Betref" / "f" in a fixed 56 dp column.
   const { fontScale, width: windowWidth, height: windowHeight } = useWindowDimensions();
   const fieldLabelWidth = React.useMemo(() => ({ width: Math.round(56 * Math.max(1, fontScale)) }), [fontScale]);
-  // The composer's laid-out width, to tell a sheet that spans the window from
-  // a narrower one; unknown until the first layout, when it opens spanning it.
+  // The composer's laid-out width, to tell a sheet that reaches the window's
+  // edges from a narrower one; unknown until the first layout.
   const [composerWidth, setComposerWidth] = React.useState<number | null>(null);
   const subjectRef = React.useRef<TextInput>(null);
   const plainBodyRef = React.useRef<TextInput>(null);
@@ -3309,12 +3309,14 @@ export default function ComposeScreen({ route, navigation }: Props) {
   // Where iOS keeps the status bar in a column on the side (iPhone Duo), the
   // header's buttons go into it, as the message viewer's do: Close, Discard,
   // Attach and Schedule, then Send at its foot, above the keyboard. Only
-  // where the composer spans the window (a sheet iOS centres in a wider
-  // window leaves the column to the screen behind it) and the buttons fit
-  // between the status bar and the keyboard; else the header keeps them.
+  // where the composer reaches the window's edges (iOS draws the sheet a
+  // few points in from them; a sheet it centres in a wider window leaves the
+  // column to the screen behind it) and the buttons fit between the status
+  // bar and the keyboard; else the header keeps them.
   const canSchedule = jmapClient.hasDelayedSend();
   const columnFoot = Math.max(insets.bottom, kbObstruction);
-  const inColumn = !asPanel && (composerWidth === null || composerWidth === Math.round(windowWidth))
+  const sheetInset = composerWidth === null ? 0 : (Math.round(windowWidth) - composerWidth) / 2;
+  const inColumn = !asPanel && sheetInset >= 0 && sheetInset <= SHEET_EDGE_MAX
     && fitsStatusColumn({ ...insets, bottom: columnFoot }, windowHeight, canSchedule ? 5 : 4);
   const columnItems: BarItem[] = [
     {
@@ -4216,6 +4218,7 @@ export default function ComposeScreen({ route, navigation }: Props) {
             top={columnItems}
             bottom={[columnSend]}
             footInset={columnFoot}
+            width={insets.right - sheetInset}
           />
         )}
       </>
@@ -4238,6 +4241,9 @@ export default function ComposeScreen({ route, navigation }: Props) {
 }
 
 const SELECTION_START = { start: 0, end: 0 };
+
+/** The most iOS insets a full-width sheet from the window's edges (8 pt on the iPhone Duo's outer display). */
+const SHEET_EDGE_MAX = 16;
 
 /** Gap between the tablet composer panel and the screen edges. */
 const PANEL_MARGIN = 24;
