@@ -905,7 +905,7 @@ function EmailViewer({ route, navigation, embedded = false, onActiveChange, fold
   const belowFold = foldAt != null;
   const paneKbObstruction = belowFold ? Math.max(0, kbObstruction - (windowHeight - foldAt)) : kbObstruction;
   const toolbar = !inColumn && (
-    <View style={[styles.toolbar, embedded && styles.toolbarEmbedded, belowFold && { paddingLeft: insets.left, paddingRight: insets.right }]}>
+    <View style={[styles.toolbar, embedded && styles.toolbarEmbedded, belowFold && { paddingLeft: insets.left + spacing.sm, paddingRight: insets.right + spacing.sm }]}>
       {!embedded && (
         <Pressable
           onPress={() => navigation.goBack()}
@@ -1117,7 +1117,8 @@ function EmailViewer({ route, navigation, embedded = false, onActiveChange, fold
       <QuickRuleSheet visible={rulesOpen} email={email ?? null} mailboxes={scopedMailboxes} onClose={() => setRulesOpen(false)} />
     </SafeAreaView>
     {belowFold && toolbar}
-    {belowFold && bottomBar}
+    {/* Not under a message that failed to load: there is nothing to reply to. */}
+    {belowFold && !(error && !email) && bottomBar}
     {/* Beside the screen's root, which pads for the column: drawn over the column itself. */}
     {inColumn && (
       <StatusColumnBar
