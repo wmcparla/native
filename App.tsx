@@ -2,7 +2,7 @@ import MetricsOverlay from './src/dev/MetricsOverlay';
 import React from 'react';
 import { ActivityIndicator, AppState, Linking, Platform, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColorScheme } from 'react-native';
 import {
   DarkTheme, DefaultTheme, NavigationContainer, createNavigationContainerRef, useIsFocused,
@@ -939,7 +939,10 @@ export default function App() {
     return (
       <>
         <StatusBar style={statusBarStyle} />
-        <LoginScreen />
+        {/* No navigator here to provide the window's insets (LoginShell). */}
+        <SafeAreaProvider>
+          <LoginScreen />
+        </SafeAreaProvider>
       </>
     );
   }
