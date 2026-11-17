@@ -28,14 +28,17 @@ jobs:
       matrix:
         include:
           # main as it is released, main with the flag, and the Duo layout branch on main with the flag.
-          - { name: main-appdelegate, ref: main, scenes: "" }
-          - { name: main-scenes, ref: main, scenes: "1" }
-          - { name: duo-scenes, ref: spike/duo-on-main, scenes: "1" }
+          - { name: main-appdelegate, repo: bulwarkmail/native, ref: main, scenes: "" }
+          - { name: main-scenes, repo: bulwarkmail/native, ref: main, scenes: "1" }
+          - { name: duo-scenes, repo: wmcparla/native, ref: spike/duo-on-main, scenes: "1" }
     name: ${{ matrix.name }}
     steps:
       - uses: actions/checkout@v4
         with:
+          # The fork's own main is old: upstream's is the one to build.
+          repository: ${{ matrix.repo }}
           ref: ${{ matrix.ref }}
+      - run: git log --oneline -1 && cat VERSION
       - uses: actions/checkout@v4
         with:
           path: harness
