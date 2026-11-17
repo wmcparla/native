@@ -1,0 +1,59 @@
+name: Scene life cycle on Xcode 26
+
+# Fork only, never for upstream: the app built with the runner's Xcode 26 and
+# the scene life cycle plugin (IOS_SCENE_LIFECYCLE=1), started on an iPhone
+# simulator signed out, and started cold from a sign-in link.
+
+on:
+  push:
+    branches: ['spike/scenes-xcode26']
+
+concurrency:
+  group: scenes-xcode26-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  EXPO_NO_TELEMETRY: "1"
+  # Not a secret: app.config.js has the same default.
+  APPLE_TEAM_ID: 8ZANF9LQ39
+
+jobs:
+  scenes:
+    runs-on: macos-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: xcodebuild -version
+      - run: npm ci
+      - name: Generate the iOS project with the scene life cycle
+        env:
+          APS_ENVIRONMENT: development
+          IOS_SCENE_LIFECYCLE: "1"
+        run: |
+          npx expo prebuild --platform ios --clean
+          grep -c "plugins/ios-scene-lifecycle" ios/*/AppDelegate.swift
+          /usr/libexec/PlistBuddy -c "Print :UIApplicationSceneManifest" ios/*/Info.plist
+      - name: Build for the simulator
+        run: |
+          WORKSPACE=$(ls -d ios/*.xcworkspace | head -1)
+          SCHEME=$(basename "$WORKSPACE" .xcworkspace)
+          if ! xcodebuild build -workspace "$WORKSPACE" -scheme "$SCHEME" -configuration Release \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath build \
+            ARCHS=arm64 CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            PROVISIONING_PROFILE_SPECIFIER= > xcodebuild.log 2>&1; then
+            grep -E "error:|fatal error" xcodebuild.log | head -n 50 || true
+            tail -n 80 xcodebuild.log
+            exit 1
+          fi
+      - name: Start signed out, then cold from a sign-in link
+        run: bash scripts/scenes/run.sh build/Build/Products/Release-iphonesimulator/BulwarkMobile.app "$GITHUB_WORKSPACE/scenes-output"
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scenes-xcode26
+          path: scenes-output
+          retention-days: 7
