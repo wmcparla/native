@@ -16,13 +16,29 @@ env:
   EXPO_NO_TELEMETRY: "1"
   # Not a secret: app.config.js has the same default.
   APPLE_TEAM_ID: 8ZANF9LQ39
+  MAESTRO_CLI_NO_ANALYTICS: "1"
+  MAESTRO_DRIVER_STARTUP_TIMEOUT: "600000"
 
 jobs:
   scenes:
     runs-on: macos-latest
     timeout-minutes: 75
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # main as it is released, main with the flag, and the Duo layout branch on main with the flag.
+          - { name: main-appdelegate, ref: main, scenes: "" }
+          - { name: main-scenes, ref: main, scenes: "1" }
+          - { name: duo-scenes, ref: spike/duo-on-main, scenes: "1" }
+    name: ${{ matrix.name }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.ref }}
+      - uses: actions/checkout@v4
+        with:
+          path: harness
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -32,11 +48,11 @@ jobs:
       - name: Generate the iOS project with the scene life cycle
         env:
           APS_ENVIRONMENT: development
-          IOS_SCENE_LIFECYCLE: "1"
+          IOS_SCENE_LIFECYCLE: ${{ matrix.scenes }}
         run: |
           npx expo prebuild --platform ios --clean
-          grep -c "plugins/ios-scene-lifecycle" ios/*/AppDelegate.swift
-          /usr/libexec/PlistBuddy -c "Print :UIApplicationSceneManifest" ios/*/Info.plist
+          grep -c "plugins/ios-scene-lifecycle" ios/*/AppDelegate.swift || true
+          /usr/libexec/PlistBuddy -c "Print :UIApplicationSceneManifest" ios/*/Info.plist || true
       - name: Build for the simulator
         run: |
           WORKSPACE=$(ls -d ios/*.xcworkspace | head -1)
@@ -49,11 +65,15 @@ jobs:
             tail -n 80 xcodebuild.log
             exit 1
           fi
+      - name: Install Maestro
+        run: |
+          curl -fsSL "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
       - name: Start signed out, then cold from a sign-in link
-        run: bash scripts/scenes/run.sh build/Build/Products/Release-iphonesimulator/BulwarkMobile.app "$GITHUB_WORKSPACE/scenes-output"
+        run: bash harness/scripts/scenes/run.sh build/Build/Products/Release-iphonesimulator/BulwarkMobile.app "$GITHUB_WORKSPACE/scenes-output"
       - if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: scenes-xcode26
+          name: scenes-xcode26-${{ matrix.name }}
           path: scenes-output
           retention-days: 7

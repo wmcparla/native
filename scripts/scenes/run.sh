@@ -20,14 +20,21 @@ xcrun simctl bootstatus "$UDID" -b
 xcrun simctl install "$UDID" "$APP"
 shot() { xcrun simctl io "$UDID" screenshot "$OUT/$1.png" >/dev/null 2>&1 && log "shot $1" || log "no screenshot $1"; }
 
+# iOS asks "Open in Bulwark Mobile?" before it hands a link over: Maestro taps Open.
+confirm() {
+  printf 'appId: %s\n---\n- tapOn:\n    text: "Open"\n    optional: true\n' "$BUNDLE_ID" > "$RUNNER_TEMP/open.yaml"
+  maestro --device "$UDID" test "$RUNNER_TEMP/open.yaml" >> "$OUT/maestro.txt" 2>&1 && log "tapped Open" || log "Open not tapped (maestro.txt)"
+}
+
 xcrun simctl launch "$UDID" "$BUNDLE_ID" >/dev/null && log "launched"
 sleep 40; shot 01-signed-out-start
 xcrun simctl openurl "$UDID" "$LINK" && log "link while running"
-sleep 15; shot 02-link-while-running
+sleep 8; confirm; sleep 10; shot 02-link-while-running
+# Cancel the app's own question so the cold start begins clean.
 xcrun simctl terminate "$UDID" "$BUNDLE_ID" && log "terminated"
 sleep 5
 xcrun simctl openurl "$UDID" "$LINK" && log "link, cold start"
-sleep 40; shot 03-link-cold-start
+sleep 8; confirm; sleep 40; shot 03-link-cold-start
 xcrun simctl spawn "$UDID" launchctl list | grep -c "$BUNDLE_ID" | xargs -I{} echo "running: {}" | tee -a "$OUT/steps.txt"
 cp ~/Library/Logs/DiagnosticReports/BulwarkMobile* "$OUT/" 2>/dev/null || true
 xcrun simctl shutdown "$UDID"
