@@ -14,7 +14,7 @@ import { useSettingsStore } from '../stores/settings-store';
 import { mailboxAccountId } from '../lib/mailbox-tree';
 import { prefetchMessage } from '../lib/email-detail-cache';
 import { collapseThreads, rowKeyOf } from '../lib/thread-utils';
-import { useTypingBelowFold } from '../lib/use-fold-panes';
+import { useTypingInList } from '../lib/use-fold-panes';
 import { useMailLayout } from '../lib/use-mail-layout';
 import { rowAfterRemoval, useMessagePane, type ThreadParams } from '../lib/use-message-pane';
 import { useColors } from '../theme/colors';
@@ -115,7 +115,8 @@ export default function MailTab({ navigation }: { navigation: RootNav }) {
   const stackable = layout.foldY != null && !unified && !layout.hasSidebar;
   // A keyboard covers most of the half lying flat: while the list has it
   // (its search field), the list takes the whole tab and the reader waits.
-  const typingInList = useTypingBelowFold(stackable ? layout.foldY : null);
+  const listRef = React.useRef<View>(null);
+  const typingInList = useTypingInList(stackable ? layout.foldY : null, listRef);
   const stacked = stackable && !typingInList;
   // The reader lies over the top of the row and the list starts below it,
   // by the reader's measured height (the fold, until it is known). The row
@@ -162,7 +163,7 @@ export default function MailTab({ navigation }: { navigation: RootNav }) {
           />
         </View>
       )}
-      <View style={[listBesideReader ? [styles.listPane, { width: layout.listWidth }] : styles.fill, stacked && { marginTop: listTop }, unified && styles.hidden]}>{list}</View>
+      <View ref={listRef} style={[listBesideReader ? [styles.listPane, { width: layout.listWidth }] : styles.fill, stacked && { marginTop: listTop }, unified && styles.hidden]}>{list}</View>
       {layout.isSplit && !unified && (
         <View
           style={stacked ? styles.readerAbove : stackable ? styles.hidden : styles.fill}

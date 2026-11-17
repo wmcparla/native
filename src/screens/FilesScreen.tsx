@@ -70,7 +70,7 @@ import { fileErrorMessage } from '../lib/file-errors';
 import { filesGridLayout } from '../lib/files-grid';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { formatListDate } from '../lib/date-format';
-import { useLaptopFoldY, useTypingBelowFold } from '../lib/use-fold-panes';
+import { useLaptopFoldY, useTypingInList } from '../lib/use-fold-panes';
 import { useLayout, useSheetInsets } from '../lib/use-layout';
 import { useSheetBottomInset } from '../lib/sheet-bottom-inset';
 import { filesListWidth, filesTitleOnOwnRow } from '../lib/files-split';
@@ -300,7 +300,8 @@ export default function FilesScreen() {
   const foldY = useLaptopFoldY();
   const previewStackable = isSplit && previewTarget != null && foldY != null;
   // While the list has the keyboard (its search field), which covers the half lying flat, it takes the whole tab.
-  const typingInList = useTypingBelowFold(previewStackable ? foldY : null);
+  const listRef = React.useRef<View>(null);
+  const typingInList = useTypingInList(previewStackable ? foldY : null, listRef);
   const previewStacked = previewStackable && !typingInList;
   const headerInsets = { paddingTop: (previewStacked ? 0 : insets.top) + spacing.sm, paddingHorizontal: spacing.md };
   // The grid's columns follow its measured width (rotation, tablet panes).
@@ -1614,10 +1615,10 @@ export default function FilesScreen() {
   const previewDocked = isSplit && previewTarget != null;
   return (
     <View
-      style={[styles.container, previewDocked && !previewStackable && styles.splitRow, { paddingLeft: insets.left, paddingRight: insets.right }]}
+      style={[styles.container, previewDocked && styles.splitRow, { paddingLeft: insets.left, paddingRight: insets.right }]}
       onLayout={(e) => setContentWidth(e.nativeEvent.layout.width - insets.left - insets.right)}
     >
-      <View style={[styles.listColumn, previewStacked ? { marginTop: foldY } : previewDocked && !previewStackable && { flex: 0, width: filesListWidth(contentWidth) }]}>
+      <View ref={listRef} style={[styles.listColumn, previewStacked ? { marginTop: foldY } : previewDocked && !previewStackable && { flex: 0, width: filesListWidth(contentWidth) }]}>
         {renderHeader()}
         <OrgAnnouncementBanner />
         {body}
@@ -2235,7 +2236,7 @@ function makeStyles(c: ThemePalette) {
     // The rest of the row; the list column gets filesListWidth.
     previewPane: { flex: 1, borderLeftWidth: 1, borderLeftColor: c.border },
     previewHidden: { display: 'none' },
-    // Over the top of the screen down to the fold (see MailTab on why not a column).
+    // Over the top of the row down to the fold (see MailTab on why the row is not turned into a column).
     previewAbove: { position: 'absolute', top: 0, borderBottomWidth: 1, borderBottomColor: c.border, backgroundColor: c.background },
     header: {
       paddingBottom: spacing.sm,

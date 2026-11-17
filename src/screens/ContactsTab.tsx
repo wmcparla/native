@@ -8,7 +8,7 @@ import ContactDetailScreen from './ContactDetailScreen';
 import GroupDetailScreen from './GroupDetailScreen';
 import type { ContactCard } from '../api/types';
 import { isGroup } from '../lib/contact-utils';
-import { useFoldAlignedListWidth, useLaptopFoldY, useTypingBelowFold } from '../lib/use-fold-panes';
+import { useFoldAlignedListWidth, useLaptopFoldY, useTypingInList } from '../lib/use-fold-panes';
 import { paneLayoutFor, usePaneArea } from '../lib/use-layout';
 import { PaneScreen, type PaneTarget } from '../navigation/pane';
 import { useLocaleStore } from '../stores/locale-store';
@@ -46,7 +46,8 @@ export default function ContactsTab() {
   const foldY = useLaptopFoldY();
   const stackable = isSplit && foldY != null;
   // While the list has the keyboard (its search field), which covers the half lying flat, it takes the whole tab.
-  const typingInList = useTypingBelowFold(stackable ? foldY : null);
+  const listRef = React.useRef<View>(null);
+  const typingInList = useTypingInList(stackable ? foldY : null, listRef);
   const stacked = stackable && !typingInList;
   const [open, setOpen] = React.useState<Open | null>(null);
 
@@ -73,11 +74,12 @@ export default function ContactsTab() {
   // or goes, and the row measures the room it has.
   return (
     <View style={styles.row} onLayout={area.onLayout}>
-      <View style={stacked ? [styles.singlePane, { marginTop: foldY }] : isSplit && !stackable ? [styles.listPane, { width: listWidth }] : styles.singlePane}>
+      <View ref={listRef} style={stacked ? [styles.singlePane, { marginTop: foldY }] : isSplit && !stackable ? [styles.listPane, { width: listWidth }] : styles.singlePane}>
         <ContactsScreen
           onOpenContact={isSplit ? (contact) => setOpen(openFor(contact)) : undefined}
           activeContactId={isSplit ? activeId : undefined}
           belowDetail={stacked}
+          fullWidth={stackable}
         />
       </View>
       {isSplit && <View style={stacked ? [styles.detailAbove, { height: foldY }] : stackable ? styles.hidden : styles.detailPane}>

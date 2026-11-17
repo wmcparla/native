@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Keyboard, Dimensions } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useKeyboardObstruction } from '../lib/use-keyboard-obstruction';
-import { useFoldAlignedListWidth, useLaptopFoldY, useTypingBelowFold } from '../lib/use-fold-panes';
+import { useFoldAlignedListWidth, useLaptopFoldY, useTypingInList } from '../lib/use-fold-panes';
 import { useLayout, usePaneArea } from '../lib/use-layout';
 import { confirmSignOut } from '../lib/sign-out-confirm';
 import {
@@ -233,7 +233,8 @@ export default function SettingsScreen({ onLogout, onBack, onTabSelect }: Settin
   // An iPhone Duo half open like a laptop: the page on the upright half, the list below the fold.
   const laptopFoldY = useLaptopFoldY();
   // While the list has the keyboard (its search field), which covers the half lying flat, it takes the whole tab.
-  const typingInList = useTypingBelowFold(isSplit ? laptopFoldY : null);
+  const listRef = React.useRef<View>(null);
+  const typingInList = useTypingInList(isSplit ? laptopFoldY : null, listRef);
   const foldY = typingInList ? null : laptopFoldY;
   const [searchQuery, setSearchQuery] = useState('');
   // A tapped search result: its pane scrolls to the setting and flashes it.
@@ -682,7 +683,7 @@ export default function SettingsScreen({ onLogout, onBack, onTabSelect }: Settin
   if (!isSplit) return shownTab ? renderPage(shownTab) : list;
   return (
     <View style={styles.splitRow} onLayout={onLayout}>
-      <View style={foldY != null ? [styles.splitPage, { marginTop: foldY }] : typingInList ? styles.splitPage : [styles.splitList, { width: listWidth }]}>{list}</View>
+      <View ref={listRef} style={foldY != null ? [styles.splitPage, { marginTop: foldY }] : typingInList ? styles.splitPage : [styles.splitList, { width: listWidth }]}>{list}</View>
       <View style={foldY != null ? [styles.pageAbove, { height: foldY }] : typingInList ? styles.pageHidden : styles.splitPage}>{shownTab ? renderPage(shownTab) : null}</View>
     </View>
   );

@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, Modal, TextInput, type TextInputProps } from 'react-native';
-import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AlertTriangle } from './icons';
 import Button from './Button';
 import { spacing, radius, typography, type ThemePalette } from '../theme/tokens';
@@ -59,9 +59,8 @@ export default function Dialog({
   // its confirm button stay visible) and above the navigation bar.
   const bottomInset = useSheetBottomInset(visible);
   // Clear of the window's side insets too (an iPhone Duo's status column:
-  // the card would reach into it). Dialogs also open where nothing provides
-  // the insets, so the context is read as it is.
-  const sideInsets = React.useContext(SafeAreaInsetsContext);
+  // the card would reach into it).
+  const sideInsets = useSafeAreaInsets();
   const confirmLabel = confirmText ?? t('common.confirm', 'Confirm');
   const cancelLabel = cancelText ?? t('common.cancel', 'Cancel');
   return (
@@ -69,8 +68,8 @@ export default function Dialog({
       <View
         style={[styles.backdrop, {
           paddingBottom: spacing.lg + bottomInset,
-          paddingLeft: spacing.lg + (sideInsets?.left ?? 0),
-          paddingRight: spacing.lg + (sideInsets?.right ?? 0),
+          paddingLeft: spacing.lg + sideInsets.left,
+          paddingRight: spacing.lg + sideInsets.right,
         }]}
       >
         <View style={styles.dialog}>
